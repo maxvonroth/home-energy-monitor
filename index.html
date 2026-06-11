@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Energy Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --bg2:      #181c26;
+      --bg3:      #1e2333;
+      --border:   rgba(255,255,255,0.08);
+      --border2:  rgba(255,255,255,0.14);
+      --text:     #e8eaf0;
+      --text2:    #9099b0;
+      --text3:    #5a6278;
+      --teal:     #1D9E75;
+      --teal-dim: rgba(29,158,117,0.12);
+      --amber:    #EF9F27;
+      --amber-dim:rgba(239,159,39,0.12);
+      --coral:    #D85A30;
+      --coral-dim:rgba(216,90,48,0.12);
+      --blue:     #378ADD;
+      --blue-dim: rgba(55,138,221,0.12);
+      --purple:   #7F77DD;
+      --radius:   12px;
+      --radius-sm:8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .app { max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 16px 12px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .header-title { font-size: 17px; font-weight: 600; color: var(--text); }
+    .header-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text2);
+      background: var(--bg3);
+      border: 0.5px solid var(--border);
+      border-radius: 99px;
+      padding: 4px 10px;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--teal);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Section label ── */
+    .s-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      padding: 0 16px;
+      margin: 20px 0 10px;
+    }
+
+    /* ── Metric cards 2-up ── */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0 16px;
+    }
+    .metric-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .metric-icon { font-size: 18px; margin-bottom: 8px; }
+    .metric-val {
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .metric-label { font-size: 12px; color: var(--text2); }
+    .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+    .api-tag {
+      display: inline-block;
+      font-size: 10px;
+      color: var(--text3);
+      background: var(--bg3);
+      border: 0.5px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-top: 6px;
+    }
+
+    /* ── Energy balance bar ── */
+    .balance-wrap {
+      margin: 0 16px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .balance-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+    .balance-track {
+      background: var(--bg3);
+      border-radius: 99px;
+      height: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .balance-solar {
+      position: absolute; left: 0; top: 0;
+      height: 100%;
+      background: var(--teal);
+      border-radius: 99px;
+      transition: width 1s ease;
+    }
+    .balance-grid {
+      position: absolute; right: 0; top: 0;
+      height: 100%;
+      background: var(--amber);
+      border-radius: 99px;
+      transition: width 1s ease;
+    }
+    .balance-net {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+
+    /* ── Chart section ── */
+    .chart-wrap {
+      margin: 0 16px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .chart-title { font-size: 13px; font-weight: 500; color: var(--text); }
+    .legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text2);
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+    /* ── Discrepancy card ── */
+    .disc-wrap {
+      margin: 0 16px;
+    }
+    .disc-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-left: 3px solid var(--amber);
+      border-radius: var(--radius);
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .disc-card.ok {
+      border-left-color: var(--teal);
+    }
+    .disc-card.warn {
+      border-left-color: var(--coral);
+    }
+    .disc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .disc-title {
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .disc-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .badge-ok    { background: rgba(29,158,117,0.15); color: #5DCAA5; }
+    .badge-warn  { background: rgba(239,159,39,0.15); color: #EF9F27; }
+    .badge-alert { background: rgba(216,90,48,0.15);  color: #D85A30; }
+    .disc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px;
+    }
+    .disc-row:last-of-type { border-bottom: none; }
+    .disc-src { display: flex; align-items: center; gap: 7px; color: var(--text2); }
+    .disc-val { font-weight: 500; }
+    .disc-diff {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 0.5px solid var(--border2);
+    }
+    .diff-lbl { font-size: 11px; color: var(--text3); }
+    .diff-nums { display: flex; align-items: baseline; gap: 6px; }
+    .diff-kwh { font-size: 14px; font-weight: 600; }
+    .diff-pct { font-size: 11px; color: var(--text3); }
+
+    /* ── Trend mini-chart ── */
+    .trend-wrap {
+      margin: 0 16px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .trend-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .trend-title { font-size: 12px; font-weight: 500; color: var(--text); }
+    .trend-avg { font-size: 11px; color: var(--text3); }
+    .tip-box {
+      background: var(--bg3);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+    }
+    .tip-box i { color: var(--text3); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Appliances ── */
+    .appl-wrap {
+      margin: 0 16px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .appl-row {
+      display: flex;
+      align-items: center;
+      padding: 13px 14px;
+      border-bottom: 0.5px solid var(--border);
+      gap: 10px;
+    }
+    .appl-row:last-child { border-bottom: none; }
+    .appl-icon { font-size: 18px; width: 28px; text-align: center; }
+    .appl-info { flex: 1; }
+    .appl-name { font-size: 13px; font-weight: 500; }
+    .appl-src  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+    .appl-right { text-align: right; }
+    .appl-watt { font-size: 14px; font-weight: 600; }
+    .appl-bar-wrap { width: 60px; height: 4px; background: var(--bg3); border-radius: 99px; margin-top: 5px; margin-left: auto; }
+    .appl-bar { height: 4px; border-radius: 99px; transition: width 1s ease; }
+    .status-on  { color: var(--teal); }
+    .status-off { color: var(--text3); }
+
+    /* ── Footer note ── */
+    .footer-note {
+      padding: 16px;
+      font-size: 11px;
+      color: var(--text3);
+      line-height: 1.6;
+      border-top: 0.5px solid var(--border);
+      margin-top: 24px;
+      display: flex;
+      gap: 8px;
+    }
+    .footer-note i { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Divider ── */
+    .divider { height: 0.5px; background: var(--border); margin: 20px 16px; }
+
+    /* ── Demo banner ── */
+    .demo-banner {
+      background: rgba(127,119,221,0.12);
+      border: 0.5px solid rgba(127,119,221,0.25);
+      border-radius: var(--radius-sm);
+      margin: 12px 16px 0;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #AFA9EC;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+    .demo-banner i { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Loading state ── */
+    .loading { color: var(--text3); font-style: italic; }
+
+    /* ── Lock screen ── */
+    #lock-screen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 32px 24px;
+    }
+    #lock-screen.hidden { display: none; }
+    .lock-icon {
+      font-size: 36px;
+      color: var(--text3);
+      margin-bottom: 20px;
+    }
+    .lock-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .lock-sub {
+      font-size: 13px;
+      color: var(--text3);
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .lock-form {
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .lock-input {
+      width: 100%;
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 18px;
+      letter-spacing: 0.25em;
+      padding: 14px 16px;
+      text-align: center;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .lock-input:focus { border-color: var(--teal); }
+    .lock-input.error { border-color: var(--coral); animation: shake 0.3s ease; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25%       { transform: translateX(-6px); }
+      75%       { transform: translateX(6px); }
+    }
+    .lock-btn {
+      width: 100%;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 500;
+      padding: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .lock-btn:active { opacity: 0.8; }
+    .lock-remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      justify-content: center;
+      user-select: none;
+    }
+    .lock-remember input { accent-color: var(--teal); width: 16px; height: 16px; cursor: pointer; }
+    .lock-error {
+      font-size: 12px;
+      color: var(--coral);
+      text-align: center;
+      min-height: 18px;
+    }
+    .lock-hint {
+      font-size: 11px;
+      color: var(--text3);
+      text-align: center;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<!-- Lock screen — hidden once authenticated -->
+<div id="lock-screen">
+  <div class="lock-icon"><i class="ti ti-solar-panel" aria-hidden="true"></i></div>
+  <div class="lock-title">Home energy</div>
+  <div class="lock-sub">Enter your PIN to continue</div>
+  <div class="lock-form">
+    <input
+      class="lock-input"
+      id="pin-input"
+      type="password"
+      inputmode="numeric"
+      maxlength="12"
+      placeholder="••••"
+      autocomplete="current-password"
+      aria-label="PIN"
+    />
+    <div class="lock-error" id="lock-error" aria-live="polite"></div>
+    <button class="lock-btn" id="lock-btn" onclick="checkPin()">Unlock</button>
+    <label class="lock-remember">
+      <input type="checkbox" id="remember-me" checked />
+      Stay unlocked on this device
+    </label>
+    <div class="lock-hint">
+      Set your PIN in the <code style="font-size:11px;">AUTH</code> section at the top of the source file.
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Home energy</div>
+      <div class="header-sub" id="timestamp">Loading...</div>
+    </div>
+    <div class="live-badge">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="live-label">Demo</span>
+    </div>
+  </div>
+
+  <!-- Demo banner -->
+  <div class="demo-banner">
+    <i class="ti ti-flask"></i>
+    <span>Running on simulated data. Connect your Enphase, EcoNet, and CMP accounts to go live — see the comments in the source code.</span>
+  </div>
+
+  <!-- Energy balance -->
+  <div class="s-label">Energy balance</div>
+  <div class="balance-wrap">
+    <div class="balance-row">
+      <span id="bal-solar-lbl">Solar — 0 W</span>
+      <span id="bal-grid-lbl">Grid — 0 W</span>
+    </div>
+    <div class="balance-track" role="img" aria-label="Solar vs grid balance bar">
+      <div class="balance-solar" id="bal-solar-bar" style="width:50%;"></div>
+      <div class="balance-grid"  id="bal-grid-bar"  style="width:50%;"></div>
+    </div>
+    <div class="balance-net" id="bal-net">—</div>
+  </div>
+
+  <!-- Now metrics -->
+  <div class="s-label">Right now</div>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-icon" style="color:var(--teal);"><i class="ti ti-sun" aria-hidden="true"></i></div>
+      <div class="metric-val" id="m-solar" style="color:var(--teal);">— W</div>
+      <div class="metric-label">Solar output</div>
+      <div class="metric-sub" id="m-solar-day">— kWh today</div>
+      <span class="api-tag">Enphase API</span>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon" style="color:var(--amber);"><i class="ti ti-bolt" aria-hidden="true"></i></div>
+      <div class="metric-val" id="m-grid" style="color:var(--amber);">— W</div>
+      <div class="metric-label">Grid draw</div>
+      <div class="metric-sub" id="m-grid-day">— kWh today</div>
+      <span class="api-tag">CMP Green Button</span>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon" style="color:var(--coral);"><i class="ti ti-home" aria-hidden="true"></i></div>
+      <div class="metric-val" id="m-usage">— W</div>
+      <div class="metric-label">Total usage</div>
+      <div class="metric-sub" id="m-cost">$— today</div>
+      <span class="api-tag">Computed</span>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon" style="color:var(--purple);"><i class="ti ti-arrow-up" aria-hidden="true"></i></div>
+      <div class="metric-val" id="m-export" style="color:var(--purple);">— kWh</div>
+      <div class="metric-label">Grid export</div>
+      <div class="metric-sub" id="m-savings">$— earned</div>
+      <span class="api-tag">Computed</span>
+    </div>
+  </div>
+
+  <!-- 24h chart -->
+  <div class="s-label" style="margin-top:24px;">Today's power curve</div>
+  <div class="chart-wrap">
+    <div class="chart-header">
+      <span class="chart-title">Watts over 24 hours</span>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>Solar</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#EF9F27;"></span>Grid</span>
+        <span class="legend-item"><span class="legend-dot" style="background:#D85A30;"></span>Usage</span>
+      </div>
+    </div>
+    <div style="position:relative; width:100%; height:180px;">
+      <canvas id="powerChart" role="img" aria-label="Line chart of solar generation, grid draw, and home usage across 24 hours">24-hour power usage data.</canvas>
+    </div>
+  </div>
+
+  <!-- Discrepancy -->
+  <div class="divider"></div>
+  <div class="s-label" style="margin-top:0;">Generation discrepancy</div>
+  <div class="disc-wrap">
+    <div class="disc-card" id="disc-card">
+      <div class="disc-header">
+        <span class="disc-title">
+          <i class="ti ti-scale" style="color:var(--amber);" aria-hidden="true" id="disc-icon"></i>
+          Enphase vs CMP
+        </span>
+        <span class="disc-badge badge-warn" id="disc-badge">Today</span>
+      </div>
+
+      <div class="disc-row">
+        <span class="disc-src">
+          <i class="ti ti-sun" style="color:var(--teal); font-size:14px;" aria-hidden="true"></i>
+          Enphase inverter
+        </span>
+        <span class="disc-val" style="color:var(--teal);" id="disc-enphase">— kWh</span>
+      </div>
+      <div class="disc-row">
+        <span class="disc-src">
+          <i class="ti ti-building" style="color:var(--blue); font-size:14px;" aria-hidden="true"></i>
+          CMP meter
+          <span style="font-size:10px; color:var(--text3);" id="cmp-lag-note">(est.)</span>
+        </span>
+        <span class="disc-val" style="color:var(--blue);" id="disc-cmp">— kWh</span>
+      </div>
+
+      <div class="disc-diff">
+        <span class="diff-lbl">Difference today</span>
+        <div class="diff-nums">
+          <span class="diff-kwh" id="disc-diff-kwh" style="color:var(--amber);">— kWh</span>
+          <span class="diff-pct" id="disc-diff-pct">(—%)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="trend-wrap">
+      <div class="trend-header">
+        <span class="trend-title">7-day discrepancy</span>
+        <span class="trend-avg" id="trend-avg">avg —%</span>
+      </div>
+      <div style="position:relative; width:100%; height:90px;">
+        <canvas id="trendChart" role="img" aria-label="Bar chart of daily generation discrepancy over past 7 days">7-day discrepancy trend.</canvas>
+      </div>
+      <div class="tip-box">
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
+        <span id="disc-tip">Under 5% is normal wiring loss between your inverter and CMP's meter. A growing or large gap is worth flagging to your installer or CMP.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appliances -->
+  <div class="divider"></div>
+  <div class="s-label" style="margin-top:0;">Appliances</div>
+  <div class="appl-wrap" id="appl-list"></div>
+
+  <!-- Footer -->
+  <div class="footer-note">
+    <i class="ti ti-clock" aria-hidden="true"></i>
+    <span>CMP Green Button data typically lags 24–48 hours — values marked <em>(est.)</em> are interpolated until confirmed readings arrive. Last full sync: <span id="last-sync">—</span></span>
+  </div>
+
+</div><!-- .app -->
+
+<script>
+  /* ================================================================
+     AUTHENTICATION
+     How to set your PIN:
+       1. Choose any PIN (numbers, letters — anything works)
+       2. Open your browser console and run:
+            await hashPin('yourPINhere')
+       3. Copy the result and paste it into PIN_HASH below
+       4. Delete the default hash — your PIN is now set
+
+     The PIN is stored as a SHA-256 hash, so even if someone reads
+     your source code on GitHub they cannot reverse it to your PIN.
+
+     SESSION_HOURS: how long a "stay unlocked" session lasts (default 72h)
+  ================================================================ */
+  const AUTH = {
+    PIN_HASH:      'SET_YOUR_HASH_HERE',  // Replace with your SHA-256 hash (see above)
+    SESSION_HOURS: 72,                    // Hours before re-prompting on saved devices
+  };
+
+  async function hashPin(pin) {
+    const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function checkPin() {
+    const input = document.getElementById('pin-input');
+    const error = document.getElementById('lock-error');
+    const pin   = input.value.trim();
+    if (!pin) return;
+
+    const hash = await hashPin(pin);
+    if (hash === AUTH.PIN_HASH) {
+      if (document.getElementById('remember-me').checked) {
+        const expiry = Date.now() + AUTH.SESSION_HOURS * 3600 * 1000;
+        localStorage.setItem('energy_session', JSON.stringify({ hash, expiry }));
+      }
+      unlock();
+    } else {
+      error.textContent = 'Incorrect PIN — try again';
+      input.classList.add('error');
+      input.value = '';
+      setTimeout(() => { input.classList.remove('error'); error.textContent = ''; }, 1500);
+      input.focus();
+    }
+  }
+
+  function unlock() {
+    document.getElementById('lock-screen').classList.add('hidden');
+    update();
+    setInterval(update, CONFIG.REFRESH_INTERVAL);
+  }
+
+  function checkSession() {
+    /* If no hash is set yet, skip auth entirely and show the dashboard */
+    if (AUTH.PIN_HASH === 'SET_YOUR_HASH_HERE') {
+      unlock();
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem('energy_session') || 'null');
+      if (saved && saved.hash === AUTH.PIN_HASH && saved.expiry > Date.now()) {
+        unlock();
+        return;
+      }
+    } catch (e) {}
+    /* Show lock screen */
+    document.getElementById('pin-input').focus();
+    document.getElementById('pin-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') checkPin();
+    });
+  }
+
+  checkSession();
+
+  /* ================================================================
+     CONFIGURATION
+     Replace these with real values when going live.
+     ================================================================ */
+  const CONFIG = {
+    DEMO_MODE: true,          // Set false when using real APIs
+
+    /* Enphase
+       1. Register at https://developer-v4.enphase.com/
+       2. Get your system_id from the Enphase app → System → System ID
+       3. OAuth docs: https://developer-v4.enphase.com/docs/quickstart.html
+    */
+    ENPHASE_API_KEY:  'YOUR_ENPHASE_API_KEY',
+    ENPHASE_SYSTEM_ID:'YOUR_SYSTEM_ID',
+
+    /* CMP / Green Button
+       CMP uses the Green Button Connect standard.
+       1. Log into your CMP account → My Account → Green Button
+       2. Authorize access to get an OAuth token
+       3. API docs: https://www.greenbuttonalliance.org/developers
+    */
+    CMP_ACCESS_TOKEN: 'YOUR_CMP_ACCESS_TOKEN',
+    CMP_SUBSCRIPTION_ID: 'YOUR_SUBSCRIPTION_ID',
+
+    /* EcoNet (Rheem water heater)
+       Best path: Home Assistant + the EcoNet integration
+       https://www.home-assistant.io/integrations/econet/
+       Or use the unofficial API; see: https://github.com/w1ll1am23/pyeconet
+    */
+    ECONET_USERNAME: 'YOUR_ECONET_EMAIL',
+    ECONET_PASSWORD: 'YOUR_ECONET_PASSWORD',
+
+    /* Dashboard settings */
+    GRID_RATE:        0.18,   // $ per kWh (your CMP rate)
+    EXPORT_RATE:      0.09,   // $ per kWh credited for export
+    DISC_WARN_PCT:    5,      // % — flag yellow above this
+    DISC_ALERT_PCT:   8,      // % — flag red above this
+    REFRESH_INTERVAL: 300000, // ms — how often to re-fetch (5 min)
+  };
+
+  /* ================================================================
+     SIMULATED DATA (demo mode only)
+     ================================================================ */
+  function solarCurve(h) {
+    if (h < 6 || h > 20) return 0;
+    return Math.round(Math.exp(-Math.pow(h - 13, 2) / 18) * 4200 + (Math.random() - 0.5) * 120);
+  }
+  function usageCurve(h) {
+    const base = 800;
+    const morning = (h >= 6 && h <= 9)   ? 600 * Math.sin((h - 6) / 3 * Math.PI) : 0;
+    const evening = (h >= 17 && h <= 22) ? 900 * Math.sin((h - 17) / 5 * Math.PI) : 0;
+    return Math.round(base + morning + evening + (Math.random() - 0.5) * 80);
+  }
+
+  /* ================================================================
+     DATA LAYER
+     In demo mode: returns simulated values.
+     In live mode: fetches from real APIs.
+     ================================================================ */
+  async function fetchEnphase() {
+    if (CONFIG.DEMO_MODE) {
+      const h = new Date().getHours();
+      const solar = solarCurve(h);
+      const todayHours = Array.from({length: h + 1}, (_, i) => i);
+      const kwhToday = todayHours.reduce((s, hh) => s + solarCurve(hh) / 1000, 0);
+      return { wattsNow: solar, kwhToday: parseFloat(kwhToday.toFixed(2)) };
+    }
+    /* LIVE: Enphase v4 API */
+    const url = `https://api.enphaseenergy.com/api/v4/systems/${CONFIG.ENPHASE_SYSTEM_ID}/summary?key=${CONFIG.ENPHASE_API_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    return {
+      wattsNow:  d.current_power,
+      kwhToday:  parseFloat((d.energy_today / 1000).toFixed(2)),
+    };
+  }
+
+  async function fetchCMP() {
+    if (CONFIG.DEMO_MODE) {
+      const h = new Date().getHours();
+      const usage = usageCurve(h);
+      const solar = solarCurve(h);
+      const grid  = Math.max(0, usage - solar);
+      const todayHours = Array.from({length: h + 1}, (_, i) => i);
+      const gridKwhToday = todayHours.reduce((s, hh) => s + Math.max(0, usageCurve(hh) - solarCurve(hh)) / 1000, 0);
+      /* CMP sees slightly less solar than Enphase (wiring losses ~3%) */
+      const cmpSolarKwh = parseFloat((todayHours.reduce((s, hh) => s + solarCurve(hh) / 1000, 0) * 0.964).toFixed(2));
+      return { wattsNow: grid, kwhToday: parseFloat(gridKwhToday.toFixed(2)), solarKwhCMP: cmpSolarKwh, isEstimated: true };
+    }
+    /* LIVE: Green Button Connect
+       Replace this fetch with your utility's actual endpoint.
+       Many CMP customers use: https://services.greenbuttondata.org/
+    */
+    const url = `https://api.cmpco.com/greenbutton/espi/1_1/resource/Subscription/${CONFIG.CMP_SUBSCRIPTION_ID}/UsagePoint`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${CONFIG.CMP_ACCESS_TOKEN}` } });
+    const text = await r.text();
+    /* Parse Green Button XML — simplified; real impl needs XML parsing */
+    console.warn('CMP Green Button parsing not yet implemented — add XML parsing here.');
+    return { wattsNow: 0, kwhToday: 0, solarKwhCMP: 0, isEstimated: false };
+  }
+
+  async function fetchEcoNet() {
+    if (CONFIG.DEMO_MODE) {
+      return [
+        { name: 'Water heater', icon: 'ti-droplet', watts: 1200, max: 4500, on: true,  color: '#D85A30', src: 'EcoNet' },
+        { name: 'HVAC',         icon: 'ti-wind',    watts: 2100, max: 5000, on: true,  color: '#D85A30', src: 'Manual' },
+        { name: 'Washer',       icon: 'ti-refresh', watts: 0,    max: 2000, on: false, color: '#5a6278', src: 'Manual' },
+        { name: 'EV charger',   icon: 'ti-car',     watts: 0,    max: 7200, on: false, color: '#5a6278', src: 'Manual' },
+      ];
+    }
+    /* LIVE: EcoNet via Home Assistant REST API
+       Make sure HA is accessible from wherever you host this page.
+       https://developers.home-assistant.io/docs/api/rest/
+    */
+    const HA_URL   = 'http://YOUR_HA_IP:8123';
+    const HA_TOKEN = 'YOUR_HA_LONG_LIVED_TOKEN';
+    const entity   = 'sensor.water_heater_power';
+    const r = await fetch(`${HA_URL}/api/states/${entity}`, {
+      headers: { Authorization: `Bearer ${HA_TOKEN}` }
+    });
+    const d = await r.json();
+    return [
+      { name: 'Water heater', icon: 'ti-droplet', watts: parseInt(d.state) || 0, max: 4500, on: parseInt(d.state) > 0, color: '#D85A30', src: 'EcoNet' },
+    ];
+  }
+
+  /* ================================================================
+     RENDER FUNCTIONS
+     ================================================================ */
+  let powerChart, trendChart;
+
+  function renderBalance(solar, grid, usage) {
+    const total  = solar + grid || 1;
+    const sPct   = Math.round(solar / total * 100);
+    const gPct   = 100 - sPct;
+    document.getElementById('bal-solar-bar').style.width = sPct + '%';
+    document.getElementById('bal-grid-bar').style.width  = gPct + '%';
+    document.getElementById('bal-solar-lbl').textContent = `Solar — ${solar.toLocaleString()} W (${sPct}%)`;
+    document.getElementById('bal-grid-lbl').textContent  = `Grid — ${grid.toLocaleString()} W (${gPct}%)`;
+
+    const export_ = Math.max(0, solar - usage);
+    const net = document.getElementById('bal-net');
+    if (export_ > 50) {
+      net.textContent = `↑ Exporting ${export_.toLocaleString()} W to grid`;
+      net.style.color = '#1D9E75';
+    } else if (grid > 50) {
+      net.textContent = `↓ Drawing ${grid.toLocaleString()} W from grid`;
+      net.style.color = '#EF9F27';
+    } else {
+      net.textContent = '⟳ Fully solar-powered right now';
+      net.style.color = '#7F77DD';
+    }
+  }
+
+  function renderMetrics(solar, grid, usage, solarKwh, gridKwh, exportKwh) {
+    document.getElementById('m-solar').textContent    = solar.toLocaleString() + ' W';
+    document.getElementById('m-solar-day').textContent = solarKwh.toFixed(1) + ' kWh today';
+    document.getElementById('m-grid').textContent     = grid.toLocaleString() + ' W';
+    document.getElementById('m-grid-day').textContent = gridKwh.toFixed(1) + ' kWh today';
+    document.getElementById('m-usage').textContent    = usage.toLocaleString() + ' W';
+    document.getElementById('m-cost').textContent     = '$' + (gridKwh * CONFIG.GRID_RATE).toFixed(2) + ' today';
+    document.getElementById('m-export').textContent   = exportKwh.toFixed(1) + ' kWh';
+    document.getElementById('m-savings').textContent  = '$' + (exportKwh * CONFIG.EXPORT_RATE).toFixed(2) + ' earned';
+  }
+
+  function renderDiscrepancy(enphaseKwh, cmpKwh, isEstimated) {
+    const diff    = enphaseKwh - cmpKwh;
+    const pct     = enphaseKwh > 0 ? (diff / enphaseKwh * 100) : 0;
+    const absPct  = Math.abs(pct);
+
+    document.getElementById('disc-enphase').textContent  = enphaseKwh.toFixed(1) + ' kWh';
+    document.getElementById('disc-cmp').textContent      = cmpKwh.toFixed(1) + ' kWh';
+    document.getElementById('disc-diff-kwh').textContent = (diff >= 0 ? '−' : '+') + Math.abs(diff).toFixed(1) + ' kWh';
+    document.getElementById('disc-diff-pct').textContent = '(' + absPct.toFixed(1) + '%)';
+    document.getElementById('cmp-lag-note').textContent  = isEstimated ? '(est.)' : '(confirmed)';
+
+    const card  = document.getElementById('disc-card');
+    const badge = document.getElementById('disc-badge');
+    const icon  = document.getElementById('disc-icon');
+    const tip   = document.getElementById('disc-tip');
+
+    card.className = 'disc-card';
+    if (absPct < CONFIG.DISC_WARN_PCT) {
+      card.classList.add('ok');
+      badge.className = 'disc-badge badge-ok';
+      badge.textContent = 'Normal';
+      icon.style.color = '#1D9E75';
+      tip.textContent = `${absPct.toFixed(1)}% is within the normal range for wiring losses between your Enphase inverter and CMP's meter. No action needed.`;
+    } else if (absPct < CONFIG.DISC_ALERT_PCT) {
+      card.classList.add('');
+      badge.className = 'disc-badge badge-warn';
+      badge.textContent = 'Monitor';
+      icon.style.color = '#EF9F27';
+      tip.textContent = `${absPct.toFixed(1)}% is slightly elevated. Watch the 7-day trend — if it stays this high, check with your Enphase installer about inverter efficiency.`;
+    } else {
+      card.classList.add('warn');
+      badge.className = 'disc-badge badge-alert';
+      badge.textContent = 'Investigate';
+      icon.style.color = '#D85A30';
+      tip.textContent = `${absPct.toFixed(1)}% is unusually large. This could indicate a metering error, wiring issue, or a discrepancy worth reporting to both Enphase and CMP.`;
+    }
+
+    document.getElementById('disc-diff-kwh').style.color =
+      absPct < CONFIG.DISC_WARN_PCT ? '#1D9E75' :
+      absPct < CONFIG.DISC_ALERT_PCT ? '#EF9F27' : '#D85A30';
+  }
+
+  function renderPowerChart(hours, solarData, gridData, usageData) {
+    const labels = hours.map(h => h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p');
+    const ctx = document.getElementById('powerChart').getContext('2d');
+    if (powerChart) powerChart.destroy();
+    powerChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Solar', data: solarData, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.07)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          { label: 'Grid',  data: gridData,  borderColor: '#EF9F27', backgroundColor: 'rgba(239,159,39,0.07)',  fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+          { label: 'Usage', data: usageData, borderColor: '#D85A30', backgroundColor: 'transparent', tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3] },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: 'index', intersect: false, callbacks: { label: c => ' ' + c.dataset.label + ': ' + c.raw.toLocaleString() + ' W' } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#5a6278', maxTicksLimit: 7, font: { size: 10 } } },
+          y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#5a6278', font: { size: 10 }, callback: v => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v } }
+        }
+      }
+    });
+  }
+
+  function renderTrendChart(discPcts) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const now  = new Date().getDay();
+    const ordered = Array.from({length: 7}, (_, i) => days[(now - 6 + i + 7) % 7]);
+    const colors  = discPcts.map(p =>
+      p < CONFIG.DISC_WARN_PCT  ? '#1D9E75' :
+      p < CONFIG.DISC_ALERT_PCT ? '#EF9F27' : '#D85A30'
+    );
+    const avg = (discPcts.reduce((a, b) => a + b, 0) / discPcts.length).toFixed(1);
+    document.getElementById('trend-avg').textContent = 'avg ' + avg + '%';
+
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ordered,
+        datasets: [{
+          data: discPcts,
+          backgroundColor: colors,
+          borderRadius: 4,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ' ' + c.raw.toFixed(1) + '% gap' } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#5a6278', font: { size: 10 } } },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#5a6278', font: { size: 10 }, callback: v => v + '%' },
+            min: 0, suggestedMax: 10
+          }
+        }
+      }
+    });
+  }
+
+  function renderAppliances(appliances) {
+    const list = document.getElementById('appl-list');
+    list.innerHTML = appliances.map(a => {
+      const pct = Math.round(a.watts / a.max * 100);
+      return `
+        <div class="appl-row">
+          <div class="appl-icon ${a.on ? 'status-on' : 'status-off'}">
+            <i class="ti ${a.icon}" aria-hidden="true"></i>
+          </div>
+          <div class="appl-info">
+            <div class="appl-name">${a.name}</div>
+            <div class="appl-src">${a.src}</div>
+          </div>
+          <div class="appl-right">
+            <div class="appl-watt" style="color:${a.on ? a.color : '#5a6278'};">
+              ${a.on ? a.watts.toLocaleString() + ' W' : 'Off'}
+            </div>
+            <div class="appl-bar-wrap">
+              <div class="appl-bar" style="width:${pct}%; background:${a.color};"></div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ================================================================
+     MAIN UPDATE LOOP
+     ================================================================ */
+  async function update() {
+    const now = new Date();
+    document.getElementById('timestamp').textContent =
+      now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    document.getElementById('live-label').textContent = CONFIG.DEMO_MODE ? 'Demo' : 'Live';
+    if (!CONFIG.DEMO_MODE) document.getElementById('live-dot').style.background = '#1D9E75';
+
+    try {
+      const [enphase, cmp, appliances] = await Promise.all([
+        fetchEnphase(), fetchCMP(), fetchEcoNet()
+      ]);
+
+      const solar  = enphase.wattsNow;
+      const grid   = cmp.wattsNow;
+      const usage  = solar + grid;
+      const solarKwh  = enphase.kwhToday;
+      const gridKwh   = cmp.kwhToday;
+      const exportKwh = Math.max(0, solarKwh - (solarKwh - gridKwh > 0 ? (solarKwh - gridKwh) : 0) - gridKwh);
+
+      const h = now.getHours();
+      const hours    = Array.from({length: 24}, (_, i) => i);
+      const solarArr = hours.map(solarCurve);
+      const usageArr = hours.map(usageCurve);
+      const gridArr  = hours.map((_, i) => Math.max(0, usageArr[i] - solarArr[i]));
+
+      renderBalance(solar, grid, usage);
+      renderMetrics(solar, grid, usage, solarKwh, gridKwh,
+        hours.slice(0, h + 1).reduce((s, hh, i) => s + Math.max(0, solarArr[i] - usageArr[i]) / 1000, 0));
+      renderPowerChart(hours, solarArr, gridArr, usageArr);
+      renderDiscrepancy(solarKwh, cmp.solarKwhCMP ?? solarKwh * 0.964, cmp.isEstimated);
+
+      /* Simulated 7-day trend (replace with real stored history) */
+      const trendPcts = [3.1, 2.8, 4.4, 2.6, 5.9, 3.3, parseFloat(((solarKwh - (cmp.solarKwhCMP ?? solarKwh * 0.964)) / solarKwh * 100).toFixed(1))];
+      renderTrendChart(trendPcts);
+      renderAppliances(appliances);
+
+      document.getElementById('last-sync').textContent =
+        CONFIG.DEMO_MODE ? 'Demo mode' :
+        now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
+        now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    }
+  }
+
+</script>
+</body>
+</html>
