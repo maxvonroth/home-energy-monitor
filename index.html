@@ -709,7 +709,7 @@
      Replace these with real values when going live.
      ================================================================ */
   const CONFIG = {
-    DEMO_MODE: true,          // Set false when using real APIs
+    DEMO_MODE: false,          // Set false when using real APIs
 
     /* Enphase
        1. Register at https://developer-v4.enphase.com/
@@ -763,7 +763,7 @@
      In demo mode: returns simulated values.
      In live mode: fetches from real APIs.
      ================================================================ */
-  async function fetchEnphase() {
+async function fetchEnphase() {
     if (CONFIG.DEMO_MODE) {
       const h = new Date().getHours();
       const solar = solarCurve(h);
@@ -771,13 +771,13 @@
       const kwhToday = todayHours.reduce((s, hh) => s + solarCurve(hh) / 1000, 0);
       return { wattsNow: solar, kwhToday: parseFloat(kwhToday.toFixed(2)) };
     }
-    /* LIVE: Enphase v4 API */
-    const url = `https://api.enphaseenergy.com/api/v4/systems/${CONFIG.ENPHASE_SYSTEM_ID}/summary?key=${CONFIG.ENPHASE_API_KEY}`;
-    const r = await fetch(url);
+    /* LIVE: Call Cloudflare Worker */
+    const r = await fetch('https://energy-dashboard-proxy.mvonroth.workers.dev/?action=enphase_summary');
+    if (!r.ok) throw new Error(`Worker error: ${r.status}`);
     const d = await r.json();
     return {
-      wattsNow:  d.current_power,
-      kwhToday:  parseFloat((d.energy_today / 1000).toFixed(2)),
+      wattsNow:  d.wattsNow ?? 0,
+      kwhToday:  d.kwhToday ?? 0,
     };
   }
 
