@@ -494,8 +494,8 @@
     </div>
   </div>
 
-  <!-- Demo banner -->
-  <div class="demo-banner">
+  <!-- Demo banner — shown by JS only when DEMO_MODE is true -->
+  <div class="demo-banner" id="demo-banner" style="display:none;">
     <i class="ti ti-flask"></i>
     <span>Running on simulated data. Connect your Enphase, EcoNet, and CMP accounts to go live — see the comments in the source code.</span>
   </div>
@@ -793,16 +793,11 @@ async function fetchEnphase() {
       const cmpSolarKwh = parseFloat((todayHours.reduce((s, hh) => s + solarCurve(hh) / 1000, 0) * 0.964).toFixed(2));
       return { wattsNow: grid, kwhToday: parseFloat(gridKwhToday.toFixed(2)), solarKwhCMP: cmpSolarKwh, isEstimated: true };
     }
-    /* LIVE: Green Button Connect
-       Replace this fetch with your utility's actual endpoint.
-       Many CMP customers use: https://services.greenbuttondata.org/
+    /* LIVE: CMP via Cloudflare Worker (not yet connected)
+       When ready, the Worker will proxy Green Button data.
+       For now return zeros until Worker support is added.
     */
-    const url = `https://api.cmpco.com/greenbutton/espi/1_1/resource/Subscription/${CONFIG.CMP_SUBSCRIPTION_ID}/UsagePoint`;
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${CONFIG.CMP_ACCESS_TOKEN}` } });
-    const text = await r.text();
-    /* Parse Green Button XML — simplified; real impl needs XML parsing */
-    console.warn('CMP Green Button parsing not yet implemented — add XML parsing here.');
-    return { wattsNow: 0, kwhToday: 0, solarKwhCMP: 0, isEstimated: false };
+    return { wattsNow: 0, kwhToday: 0, solarKwhCMP: 0, isEstimated: true };
   }
 
   async function fetchEcoNet() {
@@ -814,19 +809,15 @@ async function fetchEnphase() {
         { name: 'EV charger',   icon: 'ti-car',     watts: 0,    max: 7200, on: false, color: '#5a6278', src: 'Manual' },
       ];
     }
-    /* LIVE: EcoNet via Home Assistant REST API
-       Make sure HA is accessible from wherever you host this page.
-       https://developers.home-assistant.io/docs/api/rest/
+    /* LIVE: EcoNet via Cloudflare Worker (not yet connected)
+       When ready, the Worker will handle EcoNet auth.
+       For now return placeholder appliances until Worker support is added.
     */
-    const HA_URL   = 'http://YOUR_HA_IP:8123';
-    const HA_TOKEN = 'YOUR_HA_LONG_LIVED_TOKEN';
-    const entity   = 'sensor.water_heater_power';
-    const r = await fetch(`${HA_URL}/api/states/${entity}`, {
-      headers: { Authorization: `Bearer ${HA_TOKEN}` }
-    });
-    const d = await r.json();
     return [
-      { name: 'Water heater', icon: 'ti-droplet', watts: parseInt(d.state) || 0, max: 4500, on: parseInt(d.state) > 0, color: '#D85A30', src: 'EcoNet' },
+      { name: 'Water heater', icon: 'ti-droplet', watts: 0, max: 4500, on: false, color: '#5a6278', src: 'EcoNet — coming soon' },
+      { name: 'HVAC',         icon: 'ti-wind',    watts: 0, max: 5000, on: false, color: '#5a6278', src: 'Manual' },
+      { name: 'Washer',       icon: 'ti-refresh', watts: 0, max: 2000, on: false, color: '#5a6278', src: 'Manual' },
+      { name: 'EV charger',   icon: 'ti-car',     watts: 0, max: 7200, on: false, color: '#5a6278', src: 'Manual' },
     ];
   }
 
@@ -1015,6 +1006,7 @@ async function fetchEnphase() {
       now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
       ' · ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     document.getElementById('live-label').textContent = CONFIG.DEMO_MODE ? 'Demo' : 'Live';
+    document.getElementById('demo-banner').style.display = CONFIG.DEMO_MODE ? 'flex' : 'none';
     if (!CONFIG.DEMO_MODE) document.getElementById('live-dot').style.background = '#1D9E75';
 
     try {
