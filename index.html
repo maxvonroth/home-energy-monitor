@@ -644,6 +644,46 @@
 
      SESSION_HOURS: how long a "stay unlocked" session lasts (default 72h)
   ================================================================ */
+  /* ================================================================
+     CONFIGURATION
+     Replace these with real values when going live.
+     ================================================================ */
+  const CONFIG = {
+    DEMO_MODE: false,          // Set false when using real APIs
+
+    /* Enphase
+       1. Register at https://developer-v4.enphase.com/
+       2. Get your system_id from the Enphase app → System → System ID
+       3. OAuth docs: https://developer-v4.enphase.com/docs/quickstart.html
+    */
+    ENPHASE_API_KEY:  'YOUR_ENPHASE_API_KEY',
+    ENPHASE_SYSTEM_ID:'YOUR_SYSTEM_ID',
+
+    /* CMP / Green Button
+       CMP uses the Green Button Connect standard.
+       1. Log into your CMP account → My Account → Green Button
+       2. Authorize access to get an OAuth token
+       3. API docs: https://www.greenbuttonalliance.org/developers
+    */
+    CMP_ACCESS_TOKEN: 'YOUR_CMP_ACCESS_TOKEN',
+    CMP_SUBSCRIPTION_ID: 'YOUR_SUBSCRIPTION_ID',
+
+    /* EcoNet (Rheem water heater)
+       Best path: Home Assistant + the EcoNet integration
+       https://www.home-assistant.io/integrations/econet/
+       Or use the unofficial API; see: https://github.com/w1ll1am23/pyeconet
+    */
+    ECONET_USERNAME: 'YOUR_ECONET_EMAIL',
+    ECONET_PASSWORD: 'YOUR_ECONET_PASSWORD',
+
+    /* Dashboard settings */
+    GRID_RATE:        0.18,   // $ per kWh (your CMP rate)
+    EXPORT_RATE:      0.09,   // $ per kWh credited for export
+    DISC_WARN_PCT:    5,      // % — flag yellow above this
+    DISC_ALERT_PCT:   8,      // % — flag red above this
+    REFRESH_INTERVAL: 300000, // ms — how often to re-fetch (5 min)
+  };
+
   const AUTH = {
     PIN_HASH:      '4bc36f803d46036a145f58d10429b2623e78c25024a176a648cd7d79fd1b4591',  // Replace with your SHA-256 hash (see above)
     SESSION_HOURS: 72,                    // Hours before re-prompting on saved devices
@@ -703,46 +743,6 @@
   }
 
   checkSession();
-
-  /* ================================================================
-     CONFIGURATION
-     Replace these with real values when going live.
-     ================================================================ */
-  const CONFIG = {
-    DEMO_MODE: false,          // Set false when using real APIs
-
-    /* Enphase
-       1. Register at https://developer-v4.enphase.com/
-       2. Get your system_id from the Enphase app → System → System ID
-       3. OAuth docs: https://developer-v4.enphase.com/docs/quickstart.html
-    */
-    ENPHASE_API_KEY:  'YOUR_ENPHASE_API_KEY',
-    ENPHASE_SYSTEM_ID:'YOUR_SYSTEM_ID',
-
-    /* CMP / Green Button
-       CMP uses the Green Button Connect standard.
-       1. Log into your CMP account → My Account → Green Button
-       2. Authorize access to get an OAuth token
-       3. API docs: https://www.greenbuttonalliance.org/developers
-    */
-    CMP_ACCESS_TOKEN: 'YOUR_CMP_ACCESS_TOKEN',
-    CMP_SUBSCRIPTION_ID: 'YOUR_SUBSCRIPTION_ID',
-
-    /* EcoNet (Rheem water heater)
-       Best path: Home Assistant + the EcoNet integration
-       https://www.home-assistant.io/integrations/econet/
-       Or use the unofficial API; see: https://github.com/w1ll1am23/pyeconet
-    */
-    ECONET_USERNAME: 'YOUR_ECONET_EMAIL',
-    ECONET_PASSWORD: 'YOUR_ECONET_PASSWORD',
-
-    /* Dashboard settings */
-    GRID_RATE:        0.18,   // $ per kWh (your CMP rate)
-    EXPORT_RATE:      0.09,   // $ per kWh credited for export
-    DISC_WARN_PCT:    5,      // % — flag yellow above this
-    DISC_ALERT_PCT:   8,      // % — flag red above this
-    REFRESH_INTERVAL: 300000, // ms — how often to re-fetch (5 min)
-  };
 
   /* ================================================================
      SIMULATED DATA (demo mode only)
